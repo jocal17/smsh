@@ -8,12 +8,12 @@ char **environ;
 
 int main(int argc, char *argv[])
 {
+    struct command *com;
     while (1) {
-        struct command *com;
         printf("jsh> ");
         char *input = prompt();
         com = parse_command(input);
-        if (strcmp(com->name, "exit"))
+        if (strcmp(com->name, "exit") == 0)
             exit(0);
         if (!is_builtin(com))
             fork_and_exec(com->args[0], com->args, com->fd, environ);

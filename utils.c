@@ -42,7 +42,6 @@ struct command *parse_command(char *line)
 
     for (p = strtok(NULL, " \n"); p; p = strtok(NULL, " \n")) {
         if (strcmp(p, ">") == 0) {
-            printf("poopp\n");
             p = strtok(NULL, " \n\t\r");
             com->fd = open(p, O_RDWR);
         } else
@@ -78,32 +77,6 @@ int fork_and_exec(char *f, char **args, int fd, char **env)
     }
     if (fd != -1)
         dup2(fd, 1);
-    find_and_exec(f, args, env);
+    IF_ERROR(execvp(f, args));
     _exit(0);
-}
-
-int find_and_exec(char *f, char **args, char **env)
-{
-    char *path = getenv("PATH");
-    size_t path_len = strlen(path);
-    size_t ex_len = strlen(f) + 1;
-    char *exec = malloc(path_len + ex_len + 1);
-    exec = memcpy(exec + path_len + 1, f, ex_len);
-    *--exec = '/';
-    printf("%s\n", exec);
-    printf("%s\n", f);
-
-    char *test_path;
-    char *tok = path;
-
-    printf("%s\n", path);
-    do {
-        path = tok;
-        tok = strchr(path, ':');
-        test_path = memcpy(exec - (tok - path), path, tok - path);
-        execve(test_path, args, env);
-        printf("%s\n", test_path);
-    } while (*tok++ != '\0');
-
-    return -1;
 }
