@@ -37,13 +37,13 @@ struct command *parse_command(char *line)
     int n_args = 1;
     char *p = strtok(line, " \n\t\r");
     com->name = strdup(p);
-    com->args = malloc(sizeof(char *) * 16);
+    com->args = calloc(sizeof(char *), 16);
     com->args[0] = strdup(p);
 
     for (p = strtok(NULL, " \n"); p; p = strtok(NULL, " \n")) {
         if (strcmp(p, ">") == 0) {
             p = strtok(NULL, " \n\t\r");
-            com->fd = open(p, O_RDWR);
+            com->fd = open(p, O_WRONLY | O_CREAT, 0644);
         } else
             com->args[n_args++] = strdup(p);
     }
@@ -64,19 +64,20 @@ int is_builtin(struct command *com)
 int fork_and_exec(char *f, char **args, int fd, char **env)
 {
     pid_t pid = fork();
-    if (pid > 0) {
-        int status;
-        waitpid(pid, &status, 0);
-        printf("child exited %d \n", status);
-        return 0;
-    }
     if (pid == -1) {
         perror("Fork failed: ");
         printf("%s\n", strerror(errno));
         return -1;
     }
-    if (fd != -1)
+    if (pid > 0) {
+        int status;
+        waitpid(pid, &status, 0);
+        return 0;
+    }
+    if (fd != 1) {
         dup2(fd, 1);
+        close(fd);
+    }
     IF_ERROR(execvp(f, args));
     _exit(0);
 }
