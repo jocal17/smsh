@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
             exit(0);
         }
         if (!is_builtin(com))
-            fork_and_exec(com->args[0], com->args, com->fd, environ);
+            fork_and_exec(com, environ);
         cleanup(com, input);
     }
     return 0;
@@ -28,10 +28,14 @@ int main(int argc, char *argv[])
 
 void cleanup(struct command *c, char *l)
 {
+    free(l);
     for (int i = 0; c->args[i] != NULL; i++)
         free(c->args[i]);
     free(c->args);
     free(c->name);
-    free(l);
+    if(c->in)
+        free(c->in);
+    if(c->out)
+        free(c->out);
     free(c);
 }

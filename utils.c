@@ -1,5 +1,3 @@
-#include "jsh.h"
-
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -10,7 +8,9 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#define IF_ERROR(x) (x == -1) ? printf("%s\n", strerror(errno)) : printf("It's a pooper\n")
+#include "jsh.h"
+
+#define IF_ERROR(x) (x != -1) ?: printf("%s\n", strerror(errno))
 
 static char *builtins[] = {"cd", "\0"};
 static int (*builtin_p[])(struct command *) = {change_dir};
@@ -18,9 +18,9 @@ static int (*builtin_p[])(struct command *) = {change_dir};
 int change_dir(struct command *com)
 {
     if (com->args[1])
-        return chdir(com->args[1]);
+        return IF_ERROR(chdir(com->args[1]));
     else
-        return chdir(getenv("HOME"));
+        return IF_ERROR(chdir(getenv("HOME")));
 }
 
 char *prompt()
@@ -33,7 +33,8 @@ char *prompt()
 struct command *parse_command(char *line)
 {
     struct command *com = malloc(sizeof(struct command));
-    com->fd = 1;
+    com->in = NULL;
+    com->out = NULL;
     int n_args = 1;
     char *p = strtok(line, " \n\t\r");
     com->name = strdup(p);
@@ -43,7 +44,7 @@ struct command *parse_command(char *line)
     for (p = strtok(NULL, " \n"); p; p = strtok(NULL, " \n")) {
         if (strcmp(p, ">") == 0) {
             p = strtok(NULL, " \n\t\r");
-            com->fd = open(p, O_WRONLY | O_CREAT, 0644);
+            com->out = strdup(p);
         } else
             com->args[n_args++] = strdup(p);
     }
@@ -61,7 +62,7 @@ int is_builtin(struct command *com)
     return 0;
 }
 
-int fork_and_exec(char *f, char **args, int fd, char **env)
+int fork_and_exec(struct command *com, char **env)
 {
     pid_t pid = fork();
     if (pid == -1) {
@@ -74,10 +75,11 @@ int fork_and_exec(char *f, char **args, int fd, char **env)
         waitpid(pid, &status, 0);
         return 0;
     }
-    if (fd != 1) {
-        dup2(fd, 1);
-        close(fd);
+    if (com->out) {
+        int f = open(com->out, O_WRONLY | O_CREAT, 0644);
+        dup2(f, 1);
+        close(f);
     }
-    IF_ERROR(execvp(f, args));
+    IF_ERROR(execvp(com->name, com->args));
     _exit(0);
 }
